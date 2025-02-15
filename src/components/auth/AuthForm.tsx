@@ -25,17 +25,16 @@ export const AuthForm = () => {
     
     if (mode === "register" && !agreed) {
       toast({
-        title: "Terms Agreement Required",
-        description: "Please accept the terms of service to continue.",
+        title: "需要同意服务条款",
+        description: "请阅读并同意服务条款以继续。",
         variant: "destructive",
       });
       return;
     }
 
-    // TODO: Implement actual authentication
     toast({
-      title: mode === "login" ? "Welcome back!" : "Account created",
-      description: "You have been successfully authenticated.",
+      title: mode === "login" ? "欢迎回来！" : "账号创建成功",
+      description: "您已成功登录。",
     });
   };
 
@@ -43,12 +42,12 @@ export const AuthForm = () => {
     <Card className="w-full max-w-md mx-auto glass">
       <CardHeader>
         <CardTitle className="text-2xl font-bold">
-          {mode === "login" ? "Welcome Back" : "Create Account"}
+          {mode === "login" ? "欢迎回来" : "创建账号"}
         </CardTitle>
         <CardDescription>
           {mode === "login" 
-            ? "Enter your credentials to continue" 
-            : "Fill in your details to get started"}
+            ? "请输入您的登录信息" 
+            : "请填写以下信息以开始使用"}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -56,7 +55,7 @@ export const AuthForm = () => {
           <div className="space-y-2">
             <Input
               type="email"
-              placeholder="Email"
+              placeholder="电子邮箱"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -66,7 +65,7 @@ export const AuthForm = () => {
           <div className="space-y-2">
             <Input
               type="password"
-              placeholder="Password"
+              placeholder="密码"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -84,18 +83,18 @@ export const AuthForm = () => {
                 className="rounded border-gray-300"
               />
               <label htmlFor="terms" className="text-sm text-gray-600">
-                I agree to the{" "}
+                我同意{" "}
                 <button
                   type="button"
                   className="text-primary underline"
                   onClick={() => {
                     toast({
-                      title: "Terms of Service",
-                      description: "Terms content would be displayed here.",
+                      title: "服务条款",
+                      description: "这里将显示服务条款内容。",
                     });
                   }}
                 >
-                  terms of service
+                  服务条款
                 </button>
               </label>
             </div>
@@ -103,7 +102,7 @@ export const AuthForm = () => {
 
           <div className="space-y-4">
             <Button type="submit" className="w-full">
-              {mode === "login" ? "Sign In" : "Create Account"}
+              {mode === "login" ? "登录" : "注册"}
             </Button>
             <Button
               type="button"
@@ -112,8 +111,8 @@ export const AuthForm = () => {
               onClick={() => setMode(mode === "login" ? "register" : "login")}
             >
               {mode === "login" 
-                ? "Need an account? Register" 
-                : "Already have an account? Login"}
+                ? "没有账号？立即注册" 
+                : "已有账号？立即登录"}
             </Button>
           </div>
         </form>

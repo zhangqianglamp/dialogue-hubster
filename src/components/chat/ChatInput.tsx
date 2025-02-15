@@ -26,7 +26,7 @@ export const ChatInput = ({ onSend, disabled }: ChatInputProps) => {
         <Textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder="Type your message here..."
+          placeholder="请输入您的消息..."
           className="flex-1 min-h-[80px] glass"
           disabled={disabled}
         />

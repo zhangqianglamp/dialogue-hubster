@@ -23,7 +23,7 @@ export const ChatMessage = ({ content, isAI, isStreaming }: ChatMessageProps) =>
             isAI ? "bg-primary text-primary-foreground" : "bg-secondary"
           )}
         >
-          {isAI ? "AI" : "You"}
+          {isAI ? "AI" : "我"}
         </div>
         <div className="flex-1 space-y-2">
           <p className="text-sm leading-relaxed">{content}</p>

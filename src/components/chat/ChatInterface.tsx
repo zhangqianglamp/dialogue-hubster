@@ -34,7 +34,7 @@ export const ChatInterface = () => {
     setMessages((prev) => [...prev, aiMessage]);
 
     // Simulate streaming response
-    const response = "This is a simulated AI response. In a real implementation, this would be streaming from an AI model API.";
+    const response = "这是一个模拟的 AI 回复。在实际实现中，这里将会是来自 AI 模型 API 的流式响应。";
     let currentResponse = "";
     
     for (const char of response) {
