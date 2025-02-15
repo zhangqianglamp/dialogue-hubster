@@ -13,7 +13,11 @@ import {
 
 type AuthMode = "login" | "register";
 
-export const AuthForm = () => {
+interface AuthFormProps {
+  onAuth: () => void;
+}
+
+export const AuthForm = ({ onAuth }: AuthFormProps) => {
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,6 +40,9 @@ export const AuthForm = () => {
       title: mode === "login" ? "欢迎回来！" : "账号创建成功",
       description: "您已成功登录。",
     });
+
+    // 调用父组件传入的回调函数更新认证状态
+    onAuth();
   };
 
   return (

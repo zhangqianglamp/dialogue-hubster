@@ -12,7 +12,7 @@ const Index = () => {
         <ChatInterface />
       ) : (
         <div className="container max-w-lg mx-auto pt-20">
-          <AuthForm />
+          <AuthForm onAuth={() => setIsAuthenticated(true)} />
         </div>
       )}
     </div>
