@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,103 +10,123 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-type AuthMode = "login" | "register";
-
 interface AuthFormProps {
   onAuth: () => void;
 }
 
 export const AuthForm = ({ onAuth }: AuthFormProps) => {
-  const [mode, setMode] = useState<AuthMode>("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [agreed, setAgreed] = useState(false);
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [phone, setPhone] = useState("");
+  const [code, setCode] = useState("");
+  const [countdown, setCountdown] = useState(0);
   const { toast } = useToast();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (mode === "register" && !agreed) {
+  const startCountdown = () => {
+    setCountdown(60);
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleSendCode = () => {
+    if (!phone) {
       toast({
-        title: "需要同意服务条款",
-        description: "请阅读并同意服务条款以继续。",
+        title: "请输入手机号",
         variant: "destructive",
       });
       return;
     }
-
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
+      toast({
+        title: "请输入正确的手机号",
+        variant: "destructive",
+      });
+      return;
+    }
+    // 直接发送验证码
     toast({
-      title: mode === "login" ? "欢迎回来！" : "账号创建成功",
-      description: "您已成功登录。",
+      title: "验证码已发送",
+      description: "测试环境验证码：123456", // 开发环境显示测试验证码
     });
+    startCountdown();
+  };
 
-    // 调用父组件传入的回调函数更新认证状态
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!phone || !code) {
+      toast({
+        title: "请填写完整信息",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
+      toast({
+        title: "请输入正确的手机号",
+        variant: "destructive",
+      });
+      return;
+    }
+    // 在开发环境下使用固定的测试验证码
+    if (code !== "123456") {
+      toast({
+        title: "验证码错误",
+        description: "测试环境请使用：123456",
+        variant: "destructive",
+      });
+      return;
+    }
     onAuth();
+    toast({
+      title: mode === "login" ? "登录成功" : "注册成功",
+    });
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto glass">
+    <Card>
       <CardHeader>
-        <CardTitle className="text-2xl font-bold">
-          {mode === "login" ? "欢迎回来" : "创建账号"}
-        </CardTitle>
+        <CardTitle>{mode === "login" ? "登录" : "注册"}</CardTitle>
         <CardDescription>
-          {mode === "login" 
-            ? "请输入您的登录信息" 
-            : "请填写以下信息以开始使用"}
+          {mode === "login" ? "欢迎回来" : "创建新账号"}
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Input
-              type="email"
-              placeholder="电子邮箱"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="glass"
-            />
-          </div>
-          <div className="space-y-2">
-            <Input
-              type="password"
-              placeholder="密码"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="glass"
-            />
-          </div>
-          
-          {mode === "register" && (
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="terms"
-                checked={agreed}
-                onChange={(e) => setAgreed(e.target.checked)}
-                className="rounded border-gray-300"
-              />
-              <label htmlFor="terms" className="text-sm text-gray-600">
-                我同意{" "}
-                <button
-                  type="button"
-                  className="text-primary underline"
-                  onClick={() => {
-                    toast({
-                      title: "服务条款",
-                      description: "这里将显示服务条款内容。",
-                    });
-                  }}
-                >
-                  服务条款
-                </button>
-              </label>
-            </div>
-          )}
-
+        <form onSubmit={handleSubmit}>
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Input
+                type="tel"
+                placeholder="请输入手机号"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+            </div>
+            <div className="flex space-x-2">
+              <Input
+                type="text"
+                placeholder="请输入验证码"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="whitespace-nowrap"
+                disabled={countdown > 0}
+                onClick={handleSendCode}
+              >
+                {countdown > 0 ? `${countdown}秒后重试` : "获取验证码"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-4 mt-4">
             <Button type="submit" className="w-full">
               {mode === "login" ? "登录" : "注册"}
             </Button>
