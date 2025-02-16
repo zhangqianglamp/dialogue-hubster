@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { useToast } from "@/hooks/use-toast";
@@ -14,11 +14,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { apiClient } from "@/lib/api-client";
 
 interface Message {
   id: string;
   content: string;
   isAI: boolean;
+  role: 'user' | 'assistant';
+  timestamp?: number;
+  startTime?: number;
 }
 
 interface Chat {
@@ -44,6 +48,17 @@ export const ChatInterface = () => {
   const { toast } = useToast();
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
 
+  // 在文件顶部的 imports 下面添加一个新的 ref
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 获取当前对话 - 将这个声明移到 useEffect 之前
+  const currentChat = chats.find(chat => chat.id === currentChatId);
+
+  // 添加一个滚动到底部的函数
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
   // 监听 chats 变化，保存到 localStorage
   useEffect(() => {
     localStorage.setItem('chats', JSON.stringify(chats));
@@ -58,11 +73,18 @@ export const ChatInterface = () => {
     }
   }, [currentChatId]);
 
+  // 监听 currentChatId 和 currentChat?.messages 的变化
+  useEffect(() => {
+    if (currentChat?.messages?.length) {
+      scrollToBottom();
+    }
+  }, [currentChatId, currentChat?.messages]);
+
   // 创建新对话
   const createNewChat = () => {
     const newChat: Chat = {
       id: Date.now().toString(),
-      title: "新对话", // 初始标题
+      title: "新对话",
       messages: [],
       createdAt: new Date(),
     };
@@ -70,9 +92,14 @@ export const ChatInterface = () => {
     setCurrentChatId(newChat.id);
   };
 
-  // 获取当前对话
-  const currentChat = chats.find(chat => chat.id === currentChatId);
+  // 如果没有对话，自动创建一个新对话 - 移到 useEffect 中
+  useEffect(() => {
+    if (chats.length === 0) {
+      createNewChat();
+    }
+  }, [chats.length]);
 
+  // 创建新对话
   const handleSendMessage = async (content: string) => {
     if (!currentChatId) return;
 
@@ -80,13 +107,13 @@ export const ChatInterface = () => {
       id: Date.now().toString(),
       content,
       isAI: false,
+      role: 'user',
     };
 
     // 更新当前对话的消息，并更新标题
     setChats(prev => prev.map(chat => {
       if (chat.id === currentChatId) {
         const updatedMessages = [...chat.messages, userMessage];
-        // 如果这是第一条用户消息，将其作为标题
         const shouldUpdateTitle = chat.messages.length === 0;
         const newTitle = shouldUpdateTitle 
           ? content.length > 20 
@@ -103,14 +130,18 @@ export const ChatInterface = () => {
       return chat;
     }));
 
-    // 模拟 AI 响应
+    // 创建空的AI消息，记录开始时间
     setIsStreaming(true);
+    const startTime = Date.now();
     const aiMessage: Message = {
       id: (Date.now() + 1).toString(),
       content: "",
       isAI: true,
+      role: 'assistant',
+      startTime, // 添加开始时间
     };
 
+    // 添加空的AI消息到对话中
     setChats(prev => prev.map(chat => {
       if (chat.id === currentChatId) {
         return {
@@ -121,29 +152,64 @@ export const ChatInterface = () => {
       return chat;
     }));
 
-    // 模拟流式响应
-    const response = "这是一个模拟的 AI 回复。在实际实现中，这里将会是来自 AI 模型 API 的流式响应。";
-    let currentResponse = "";
-    
-    for (const char of response) {
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      currentResponse += char;
+    try {
+      // 调用 SiliconCloud API
+      const stream = await apiClient.createChatCompletion([
+        { role: 'user', content }
+      ]);
+
+      let currentResponse = "";
+      
+      // 处理流式响应
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || '';
+        currentResponse += content;
+        
+        // 更新AI消息内容
+        setChats(prev => prev.map(chat => {
+          if (chat.id === currentChatId) {
+            return {
+              ...chat,
+              messages: chat.messages.map(msg => 
+                msg.id === aiMessage.id 
+                  ? { ...msg, content: currentResponse }
+                  : msg
+              ),
+            };
+          }
+          return chat;
+        }));
+      }
+
+      // 在流式响应完成后，更新结束时间
       setChats(prev => prev.map(chat => {
         if (chat.id === currentChatId) {
           return {
             ...chat,
             messages: chat.messages.map(msg => 
               msg.id === aiMessage.id 
-                ? { ...msg, content: currentResponse }
+                ? { 
+                    ...msg, 
+                    timestamp: Date.now(), // 结束时间
+                    startTime: startTime   // 确保保留开始时间
+                  }
                 : msg
             ),
           };
         }
         return chat;
       }));
-    }
 
-    setIsStreaming(false);
+    } catch (error) {
+      console.error('API调用错误:', error);
+      toast({
+        title: "发生错误",
+        description: "与AI对话时出现问题，请稍后重试",
+        variant: "destructive",
+      });
+    } finally {
+      setIsStreaming(false);
+    }
   };
 
   // 删除单个对话
@@ -167,11 +233,6 @@ export const ChatInterface = () => {
       description: "所有对话已清空",
     });
   };
-
-  // 如果没有对话，自动创建一个新对话
-  if (chats.length === 0) {
-    createNewChat();
-  }
 
   return (
     <div className="flex h-[calc(100vh-64px)] max-w-6xl mx-auto">
@@ -234,8 +295,11 @@ export const ChatInterface = () => {
               isAI={message.isAI}
               isStreaming={isStreaming && message.isAI && 
                 currentChat.messages[currentChat.messages.length - 1].id === message.id}
+              timestamp={message.timestamp}
+              startTime={message.startTime}
             />
           ))}
+          <div ref={messagesEndRef} />
         </div>
         {/* 输入区域 - 添加 shrink-0 防止压缩 */}
         <div className="p-4 shrink-0 border-t bg-background">
