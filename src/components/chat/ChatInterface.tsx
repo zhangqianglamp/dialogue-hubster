@@ -174,31 +174,21 @@ export const ChatInterface = () => {
   }
 
   return (
-    <div className="flex h-[calc(100vh-2rem)] max-w-6xl mx-auto">
-      {/* 左侧边栏 */}
-      <div className="w-64 bg-gray-50 p-4 border-r glass">
-        <div className="flex flex-col space-y-4">
-          <Button
-            onClick={createNewChat}
-            className="w-full"
-            variant="outline"
-          >
-            <PlusCircle className="mr-2 h-4 w-4" />
-            新建对话
-          </Button>
-          
-          <Button
-            onClick={() => setShowClearAllDialog(true)}
-            className="w-full"
-            variant="ghost"
-            disabled={chats.length === 0}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            清空所有对话
-          </Button>
-        </div>
+    <div className="flex h-[calc(100vh-64px)] max-w-6xl mx-auto">
+      {/* 左侧边栏 - 添加 overflow-hidden */}
+      <div className="w-64 bg-gray-50 p-4 border-r glass flex flex-col overflow-hidden">
+        {/* 新建对话按钮 - 保持不变 */}
+        <Button
+          onClick={createNewChat}
+          className="w-full mb-4 shrink-0"
+          variant="outline"
+        >
+          <PlusCircle className="mr-2 h-4 w-4" />
+          新建对话
+        </Button>
         
-        <div className="space-y-2 mt-4">
+        {/* 对话列表 - 优化滚动区域 */}
+        <div className="flex-1 overflow-y-auto min-h-0 space-y-2">
           {chats.map(chat => (
             <div key={chat.id} className="group relative">
               <Button
@@ -220,6 +210,37 @@ export const ChatInterface = () => {
             </div>
           ))}
         </div>
+
+        {/* 清空所有对话按钮 - 添加 shrink-0 防止压缩 */}
+        <Button
+          onClick={() => setShowClearAllDialog(true)}
+          className="w-full mt-4 shrink-0"
+          variant="ghost"
+          disabled={chats.length === 0}
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          清空所有对话
+        </Button>
+      </div>
+
+      {/* 右侧聊天区域 - 优化布局 */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* 聊天消息区域 - 优化滚动 */}
+        <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
+          {currentChat?.messages.map((message) => (
+            <ChatMessage
+              key={message.id}
+              content={message.content}
+              isAI={message.isAI}
+              isStreaming={isStreaming && message.isAI && 
+                currentChat.messages[currentChat.messages.length - 1].id === message.id}
+            />
+          ))}
+        </div>
+        {/* 输入区域 - 添加 shrink-0 防止压缩 */}
+        <div className="p-4 shrink-0 border-t bg-background">
+          <ChatInput onSend={handleSendMessage} disabled={isStreaming || !currentChatId} />
+        </div>
       </div>
 
       {/* 清空所有对话的确认对话框 */}
@@ -239,24 +260,6 @@ export const ChatInterface = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* 右侧聊天区域 */}
-      <div className="flex-1 flex flex-col">
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {currentChat?.messages.map((message) => (
-            <ChatMessage
-              key={message.id}
-              content={message.content}
-              isAI={message.isAI}
-              isStreaming={isStreaming && message.isAI && 
-                currentChat.messages[currentChat.messages.length - 1].id === message.id}
-            />
-          ))}
-        </div>
-        <div className="p-4">
-          <ChatInput onSend={handleSendMessage} disabled={isStreaming || !currentChatId} />
-        </div>
-      </div>
     </div>
   );
 };
