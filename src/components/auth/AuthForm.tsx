@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ImageCaptcha } from "@/components/ui/image-captcha";
 
 interface AuthFormProps {
   onAuth: () => void;
@@ -19,6 +20,7 @@ export const AuthForm = ({ onAuth }: AuthFormProps) => {
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [countdown, setCountdown] = useState(0);
+  const [showCaptcha, setShowCaptcha] = useState(false);
   const { toast } = useToast();
 
   const startCountdown = () => {
@@ -49,12 +51,16 @@ export const AuthForm = ({ onAuth }: AuthFormProps) => {
       });
       return;
     }
-    // 直接发送验证码
+    setShowCaptcha(true);
+  };
+
+  const handleCaptchaSuccess = () => {
     toast({
       title: "验证码已发送",
       description: "测试环境验证码：123456", // 开发环境显示测试验证码
     });
     startCountdown();
+    setShowCaptcha(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -143,6 +149,13 @@ export const AuthForm = ({ onAuth }: AuthFormProps) => {
           </div>
         </form>
       </CardContent>
+
+      {showCaptcha && (
+        <ImageCaptcha
+          onSuccess={handleCaptchaSuccess}
+          onClose={() => setShowCaptcha(false)}
+        />
+      )}
     </Card>
   );
 };
