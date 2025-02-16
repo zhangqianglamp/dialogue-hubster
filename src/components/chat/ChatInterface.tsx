@@ -15,6 +15,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { apiClient } from "@/lib/api-client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AVAILABLE_MODELS, DEFAULT_MODEL } from "@/config/models";
 
 interface Message {
   id: string;
@@ -30,6 +32,7 @@ interface Chat {
   title: string;
   messages: Message[];
   createdAt: Date;
+  model: string;
 }
 
 export const ChatInterface = () => {
@@ -50,6 +53,9 @@ export const ChatInterface = () => {
 
   // 在文件顶部的 imports 下面添加一个新的 ref
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 在文件顶部添加 useState 导入
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   // 获取当前对话 - 将这个声明移到 useEffect 之前
   const currentChat = chats.find(chat => chat.id === currentChatId);
@@ -87,6 +93,7 @@ export const ChatInterface = () => {
       title: "新对话",
       messages: [],
       createdAt: new Date(),
+      model: DEFAULT_MODEL.id,
     };
     setChats(prev => [...prev, newChat]);
     setCurrentChatId(newChat.id);
@@ -99,9 +106,35 @@ export const ChatInterface = () => {
     }
   }, [chats.length]);
 
-  // 创建新对话
+  // 添加模型选择处理函数
+  const handleModelChange = (modelId: string) => {
+    setChats(prev => prev.map(chat => {
+      if (chat.id === currentChatId) {
+        return {
+          ...chat,
+          model: modelId
+        };
+      }
+      return chat;
+    }));
+  };
+
+  // 添加停止对话的函数
+  const handleStopGeneration = () => {
+    if (abortController) {
+      abortController.abort();
+      setIsStreaming(false);
+      setAbortController(null);
+    }
+  };
+
+  // 修改 handleSendMessage 函数，在发送请求前创建新的 AbortController
   const handleSendMessage = async (content: string) => {
     if (!currentChatId) return;
+
+    // 创建新的 AbortController
+    const controller = new AbortController();
+    setAbortController(controller);
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -153,10 +186,11 @@ export const ChatInterface = () => {
     }));
 
     try {
-      // 调用 SiliconCloud API
-      const stream = await apiClient.createChatCompletion([
-        { role: 'user', content }
-      ]);
+      const stream = await apiClient.createChatCompletion(
+        [{ role: 'user', content }],
+        currentChat?.model,
+        controller.signal // 传入 signal
+      );
 
       let currentResponse = "";
       
@@ -201,6 +235,14 @@ export const ChatInterface = () => {
       }));
 
     } catch (error) {
+      // 判断是否是用户主动取消
+      if (error.name === 'AbortError') {
+        toast({
+          description: "已停止生成",
+        });
+        return;
+      }
+
       console.error('API调用错误:', error);
       toast({
         title: "发生错误",
@@ -209,6 +251,7 @@ export const ChatInterface = () => {
       });
     } finally {
       setIsStreaming(false);
+      setAbortController(null);
     }
   };
 
@@ -297,13 +340,44 @@ export const ChatInterface = () => {
                 currentChat.messages[currentChat.messages.length - 1].id === message.id}
               timestamp={message.timestamp}
               startTime={message.startTime}
+              onStop={message.isAI && isStreaming ? handleStopGeneration : undefined}
             />
           ))}
           <div ref={messagesEndRef} />
         </div>
+        
+        {/* 添加模型选择器 */}
+        <div className="px-4 py-3 border-t bg-background/50 backdrop-blur-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm text-gray-600">请选择你需要的模型</span>
+            <Select
+              value={currentChat?.model}
+              onValueChange={handleModelChange}
+              disabled={isStreaming}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="选择模型" />
+              </SelectTrigger>
+              <SelectContent>
+                {AVAILABLE_MODELS.map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    <div className="flex flex-col">
+                      <span>{model.name}</span>
+                      <span className="text-xs text-gray-500">{model.description}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        
         {/* 输入区域 - 添加 shrink-0 防止压缩 */}
-        <div className="p-4 shrink-0 border-t bg-background">
-          <ChatInput onSend={handleSendMessage} disabled={isStreaming || !currentChatId} />
+        <div className="p-4 border-t bg-background">
+          <ChatInput 
+            onSend={handleSendMessage} 
+            disabled={!currentChatId}
+          />
         </div>
       </div>
 

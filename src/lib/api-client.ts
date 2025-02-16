@@ -22,7 +22,7 @@ class ApiClient {
     this.apiKey = import.meta.env.VITE_SILICONCLOUD_API_KEY || '';
   }
 
-  async createChatCompletion(messages: ChatMessage[]) {
+  async createChatCompletion(messages: ChatMessage[], model?: string, signal?: AbortSignal) {
     const response = await fetch(`${this.baseURL}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -30,10 +30,11 @@ class ApiClient {
         'Authorization': `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify({
-        model: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B',
+        model: model || 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B',
         messages,
         stream: true,
       }),
+      signal,
     });
 
     if (!response.ok) {
