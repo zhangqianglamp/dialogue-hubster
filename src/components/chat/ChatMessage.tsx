@@ -11,7 +11,7 @@ import { BiLike, BiSolidLike } from 'react-icons/bi';
 import { AiOutlineFieldTime } from 'react-icons/ai';
 import { TbTextSize } from 'react-icons/tb';
 import { Button } from "@/components/ui/button";
-import { StopCircle, Copy, Check } from "lucide-react";
+import { StopCircle, Copy, Check, RefreshCw } from "lucide-react";
 
 // 注册需要的语言
 SyntaxHighlighter.registerLanguage('typescript', typescript);
@@ -25,9 +25,10 @@ interface ChatMessageProps {
   timestamp?: number;
   startTime?: number;
   onStop?: () => void;
+  onRegenerate?: () => void;
 }
 
-export const ChatMessage = ({ content, isAI, isStreaming, timestamp, startTime, onStop }: ChatMessageProps) => {
+export const ChatMessage = ({ content, isAI, isStreaming, timestamp, startTime, onStop, onRegenerate }: ChatMessageProps) => {
   const [liked, setLiked] = useState(false);
   const [copied, setCopied] = useState(false);
   
@@ -139,6 +140,15 @@ export const ChatMessage = ({ content, isAI, isStreaming, timestamp, startTime, 
                       {liked ? <BiSolidLike className="w-4 w-4 text-blue-500" /> : <BiLike className="w-4 w-4" />}
                       <span>{liked ? '已点赞' : '点赞'}</span>
                     </button>
+                    {isAI && onRegenerate && (
+                      <button 
+                        onClick={onRegenerate}
+                        className="flex items-center gap-1 hover:text-green-500"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        <span>重新生成</span>
+                      </button>
+                    )}
                   </div>
                 )}
                 

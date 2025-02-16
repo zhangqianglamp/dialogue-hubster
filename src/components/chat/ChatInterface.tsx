@@ -132,7 +132,6 @@ export const ChatInterface = () => {
   const handleSendMessage = async (content: string) => {
     if (!currentChatId) return;
 
-    // 创建新的 AbortController
     const controller = new AbortController();
     setAbortController(controller);
 
@@ -143,7 +142,7 @@ export const ChatInterface = () => {
       role: 'user',
     };
 
-    // 更新当前对话的消息，并更新标题
+    // 更新当前对话的消息
     setChats(prev => prev.map(chat => {
       if (chat.id === currentChatId) {
         const updatedMessages = [...chat.messages, userMessage];
@@ -163,7 +162,6 @@ export const ChatInterface = () => {
       return chat;
     }));
 
-    // 创建空的AI消息，记录开始时间
     setIsStreaming(true);
     const startTime = Date.now();
     const aiMessage: Message = {
@@ -171,7 +169,7 @@ export const ChatInterface = () => {
       content: "",
       isAI: true,
       role: 'assistant',
-      startTime, // 添加开始时间
+      startTime,
     };
 
     // 添加空的AI消息到对话中
@@ -186,10 +184,22 @@ export const ChatInterface = () => {
     }));
 
     try {
+      // 构建完整的消息历史
+      const messageHistory = currentChat?.messages.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      })) || [];
+
+      // 将当前用户消息添加到历史中
+      messageHistory.push({
+        role: 'user',
+        content
+      });
+
       const stream = await apiClient.createChatCompletion(
-        [{ role: 'user', content }],
+        messageHistory,  // 传入完整的消息历史
         currentChat?.model,
-        controller.signal // 传入 signal
+        controller.signal
       );
 
       let currentResponse = "";
@@ -277,6 +287,111 @@ export const ChatInterface = () => {
     });
   };
 
+  // 添加重新生成处理函数
+  const handleRegenerate = async (messageIndex: number) => {
+    if (!currentChatId || !currentChat) return;
+
+    // 获取到当前消息之前的所有消息历史
+    const previousMessages = currentChat.messages.slice(0, messageIndex).map(msg => ({
+      role: msg.role,
+      content: msg.content
+    }));
+
+    // 创建新的 AI 消息
+    const startTime = Date.now();
+    const newAiMessage: Message = {
+      id: Date.now().toString(),
+      content: "",
+      isAI: true,
+      role: 'assistant',
+      startTime,
+    };
+
+    // 更新对话，移除之前的 AI 回复，添加新的空 AI 消息
+    setChats(prev => prev.map(chat => {
+      if (chat.id === currentChatId) {
+        return {
+          ...chat,
+          messages: [
+            ...chat.messages.slice(0, messageIndex),
+            newAiMessage
+          ],
+        };
+      }
+      return chat;
+    }));
+
+    setIsStreaming(true);
+    const controller = new AbortController();
+    setAbortController(controller);
+
+    try {
+      const stream = await apiClient.createChatCompletion(
+        previousMessages,
+        currentChat.model,
+        controller.signal
+      );
+
+      let currentResponse = "";
+      
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || '';
+        currentResponse += content;
+        
+        setChats(prev => prev.map(chat => {
+          if (chat.id === currentChatId) {
+            return {
+              ...chat,
+              messages: chat.messages.map(msg => 
+                msg.id === newAiMessage.id 
+                  ? { ...msg, content: currentResponse }
+                  : msg
+              ),
+            };
+          }
+          return chat;
+        }));
+      }
+
+      // 更新完成时间
+      setChats(prev => prev.map(chat => {
+        if (chat.id === currentChatId) {
+          return {
+            ...chat,
+            messages: chat.messages.map(msg => 
+              msg.id === newAiMessage.id 
+                ? { 
+                    ...msg, 
+                    timestamp: Date.now(),
+                    startTime: startTime
+                  }
+                : msg
+            ),
+          };
+        }
+        return chat;
+      }));
+
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        toast({
+          description: "已停止生成",
+        });
+        return;
+      }
+
+      console.error('重新生成错误:', error);
+      toast({
+        title: "发生错误",
+        description: "重新生成回复时出现问题，请稍后重试",
+        variant: "destructive",
+      });
+    } finally {
+      setIsStreaming(false);
+      setAbortController(null);
+    }
+  };
+
   return (
     <div className="flex h-[calc(100vh-64px)] max-w-6xl mx-auto">
       {/* 左侧边栏 - 添加 overflow-hidden */}
@@ -331,7 +446,7 @@ export const ChatInterface = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* 聊天消息区域 - 优化滚动 */}
         <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
-          {currentChat?.messages.map((message) => (
+          {currentChat?.messages.map((message, index) => (
             <ChatMessage
               key={message.id}
               content={message.content}
@@ -341,6 +456,7 @@ export const ChatInterface = () => {
               timestamp={message.timestamp}
               startTime={message.startTime}
               onStop={message.isAI && isStreaming ? handleStopGeneration : undefined}
+              onRegenerate={message.isAI ? () => handleRegenerate(index + 1) : undefined}
             />
           ))}
           <div ref={messagesEndRef} />

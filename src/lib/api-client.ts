@@ -23,6 +23,9 @@ class ApiClient {
   }
 
   async createChatCompletion(messages: ChatMessage[], model?: string, signal?: AbortSignal) {
+    // 确保消息历史不超过合理长度，这里取最近10条
+    const recentMessages = messages.slice(-10);
+
     const response = await fetch(`${this.baseURL}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -31,7 +34,7 @@ class ApiClient {
       },
       body: JSON.stringify({
         model: model || 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B',
-        messages,
+        messages: recentMessages, // 传入最近的消息历史
         stream: true,
       }),
       signal,
